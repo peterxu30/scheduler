@@ -2,6 +2,8 @@ from bw2python import ponames
 from bw2python.bwtypes import PayloadObject
 from bw2python.client import Client
 import msgpack
+import thread
+import sys
 import time
 
 from ssu_instances import *
@@ -19,7 +21,7 @@ class Scheduler(object):
         self.bw_client.overrideAutoChainTo(True)
 
     def run(self):
-        print "Scheduler running"
+        print "scheduler running"
         self.bw_client.subscribe(self.signal, self.on_message)
         while True:
             print "sleeping"
@@ -53,21 +55,24 @@ class Scheduler(object):
             mode = 2
 
         print heating_setpt, cooling_setpt, override, mode, fan
+        sys.stdout.flush()
         return heating_setpt, cooling_setpt, override, mode, fan
 
     def publish_schedule(self, heating_setpt, cooling_setpt, override, mode, fan):
         t = {'heating_setpoint': heating_setpt, 'cooling_setpoint': cooling_setpt, 'override': override, 'mode': mode, 'fan': fan}
         po = PayloadObject((2,1,1,0), None, msgpack.packb(t))
-        print "about to publish", t
-        # self.bw_client.publish(slot, payload_objects =(po,))
-        print "published", t
+        print t
+        self.bw_client.publish(self.slot, payload_objects =(po,))
 
     def on_message(self, bw_message):
         print "msg received"
-        for po in bw_message.payload_objects:
-            if po.type_dotted == (2,1,1,0):
-                tstat_data = msgpack.unpackb(po.content)
-                self.publish(kwargs=tstat_data)
+        try:
+            for po in bw_message.payload_objects:
+                if po.type_dotted == (2,1,1,0):
+                    tstat_data = msgpack.unpackb(po.content)
+                    thread.start_new_thread(self.publish, (), {'kwargs': tstat_data})
+        except Exception as e:
+            print e
 
 #main
 signal = "scratch.ns/services/s.vthermostat/vthermostat/i.xbos.thermostat/signal/info"
