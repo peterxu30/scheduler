@@ -44,7 +44,7 @@ class Scheduler(object):
         data = (temp, rel_humidity, heating_setpt, cooling_setpt, override, fan, mode, state, time)
         curr = self.ssu_list
         while curr is not None:
-            sched = curr.ssu.generate_schedule(*data)
+            data = curr.ssu.generate_schedule(*data)
             curr = curr.rest
 
         heating_setpt, cooling_setpt = data[2], data[3]
@@ -54,11 +54,15 @@ class Scheduler(object):
         elif temp >= cooling_setpt:
             mode = 2
 
-        print heating_setpt, cooling_setpt, override, mode, fan
-        sys.stdout.flush()
-        return heating_setpt, cooling_setpt, override, mode, fan
+        return float(heating_setpt), float(cooling_setpt), override, mode, fan
 
     def publish_schedule(self, heating_setpt, cooling_setpt, override, mode, fan):
+        assert isinstance(heating_setpt, float)
+        assert isinstance(cooling_setpt, float)
+        assert isinstance(override, bool)
+        assert isinstance(mode, int)
+        assert isinstance(fan, bool)
+
         t = {'heating_setpoint': heating_setpt, 'cooling_setpoint': cooling_setpt, 'override': override, 'mode': mode, 'fan': fan}
         po = PayloadObject((2,1,1,0), None, msgpack.packb(t))
         print t
