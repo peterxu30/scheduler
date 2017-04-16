@@ -20,7 +20,7 @@ This repository contains the following:
 One can create new schedulers through either novel composition of existing Single Schedule Units or the creation of new Single Schedule Units (and then constructing a new Scheduler instance through composition of new and existing Single Schedule Units).
 
 New Single Schedule Instances must conform to the following requirements:
-1. Inherit from SSU
-2. Define a `generate_schedule` method that takes the same parameters as the abstract method defined in SSU
+1. Inherit from `SSU`
+2. Define a `generate_schedule` method that takes the same parameters as the abstract method defined in `SSU`
 
 Outside of these requirements, it is fine to create instance and class attributes and there is no limitation on acceptable behavior. A Single Schedule Instance may make networking calls to check the weather and so forth.
