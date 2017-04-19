@@ -20,8 +20,8 @@ class SSU_Natural(SSU):
 
 		#2. If hour is between 7 and 22, use regular window. Expand if not.
 		if dt.hour < 7 or dt.hour > 22:
-			heating_setpt = int(base_heating_setpt + (base_heating_setpt * 0.5))
-			cooling_setpt = int(cooling_setpt - (base_cooling_setpt * 0.5))
+			heating_setpt = int(base_heating_setpt - 15)
+			cooling_setpt = int(cooling_setpt + 15)
 
 		return temp, rel_humidity, heating_setpt, cooling_setpt, override, fan, mode, state, time
 		
@@ -35,8 +35,8 @@ class SSU_Social(SSU):
 		dt = datetime.fromtimestamp(time // 1000000000)
 
 		if dt.weekday() >= 5: #it's a weekend
-			heating_setpt += int(0.5 * heating_setpt)
-			cooling_setpt -= int(0.5 * cooling_setpt)
+			heating_setpt -= 15
+			cooling_setpt += 15
 
 		return temp, rel_humidity, heating_setpt, cooling_setpt, override, fan, mode, state, time
 
