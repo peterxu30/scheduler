@@ -22,9 +22,11 @@ class Scheduler(object):
 
     def run(self):
         print "scheduler running"
-        self.bw_client.subscribe(self.signal, self.on_message)
+        self.bw_client.subscribe(self.slot, self.on_message)
         while True:
             print "sleeping"
+            # thread.start_new_thread(self.publish, (), {'kwargs': {'temperature': 10, 'relative_humidity': 5, 'heating_setpoint':11.0, 'cooling_setpoint': 5.0, 'override':False, 'fan':False, 'mode': 3, 'state': 3, 'time': time.time() * 1e9}})
+            # print "published"
             time.sleep(10000)
 
     def publish(self, **kwargs):
@@ -66,7 +68,7 @@ class Scheduler(object):
         t = {'heating_setpoint': heating_setpt, 'cooling_setpoint': cooling_setpt, 'override': override, 'mode': mode, 'fan': fan}
         po = PayloadObject((2,1,1,0), None, msgpack.packb(t))
         print t
-        self.bw_client.publish(self.slot, payload_objects =(po,))
+        self.bw_client.publish(self.signal, payload_objects =(po,))
 
     def on_message(self, bw_message):
         print "msg received"
@@ -79,8 +81,18 @@ class Scheduler(object):
             print e
 
 #main
-signal = "scratch.ns/services/s.vthermostat/vthermostat/i.xbos.thermostat/signal/info"
-slot = "scratch.ns/services/s.vthermostat/vthermostat/i.xbos.thermostat/slot/state"
+signal = "scratch.ns/services/s.schedule/schedule1/i.xbos.thermostat/signal/info"
+slot = "scratch.ns/services/s.schedule/schedule1/i.xbos.thermostat/slot/state"
 ssu_list = [SSU_Natural(), SSU_Social(), SSU_Custom()]
 schedule = Scheduler(signal, slot, ssu_list)
-schedule.run()
+# schedule.run()
+thread.start_new_thread(schedule.run, (), {})
+
+signal2 = "scratch.ns/services/s.schedule/schedule2/i.xbos.thermostat/signal/info"
+slot2 = "scratch.ns/services/s.schedule/schedule2/i.xbos.thermostat/slot/state"
+ssu_list2 = [SSU_Social(), SSU_Custom()]
+schedule2 = Scheduler(signal2, slot2, ssu_list2)
+# thread.start_new_thread(schedule2.run, (), {})
+
+while True:
+    time.sleep(1000)
