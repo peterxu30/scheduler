@@ -1,9 +1,11 @@
 from bw2python import ponames
 from bw2python.bwtypes import PayloadObject
 from bw2python.client import Client
+import copy
 import msgpack
-import thread
+import Queue
 import sys
+import thread
 import time
 
 from ssu_instances import *
@@ -20,27 +22,43 @@ class Scheduler(object):
         self.bw_client.setEntityFromEnviron()
         self.bw_client.overrideAutoChainTo(True)
 
+        self.last_received_schedule = {'kwargs': {
+            'temperature': None, 
+            'relative_humidity': None, 
+            'heating_setpoint': None, 
+            'cooling_setpoint': None, 
+            'override': None, 
+            'fan': None, 
+            'mode': None, 
+            'state': None, 
+            'time': time.time() * 1e9}}
+
     def run(self):
         print "scheduler running"
         self.bw_client.subscribe(self.slot, self.on_message)
         while True:
+            #For time-based SSUs. Sends a signal every hour. Publishing will fail if initial SSU is not strictly time-based.
+            msg = copy.deepcopy(self.last_received_schedule)
+            msg['kwargs']['time'] = time.time() * 1e9
+            thread.start_new_thread(self.publish, (), msg)
+            time.sleep(3600)
             print "sleeping"
-            # thread.start_new_thread(self.publish, (), {'kwargs': {'temperature': 10, 'relative_humidity': 5, 'heating_setpoint':11.0, 'cooling_setpoint': 5.0, 'override':False, 'fan':False, 'mode': 3, 'state': 3, 'time': time.time() * 1e9}})
-            # print "published"
-            time.sleep(10000)
 
     def publish(self, **kwargs):
-        kwargs = kwargs.get('kwargs')
-        sched = self.generate_schedule(kwargs.get('temperature'),
-            kwargs.get('relative_humidity'),
-            kwargs.get('heating_setpoint'),
-            kwargs.get('cooling_setpoint'),
-            kwargs.get('override'),
-            kwargs.get('fan'),
-            kwargs.get('mode'),
-            kwargs.get('state'),
-            kwargs.get('time'))
-        self.publish_schedule(*sched)
+        try:
+            kwargs = kwargs.get('kwargs')
+            sched = self.generate_schedule(kwargs.get('temperature'),
+                kwargs.get('relative_humidity'),
+                kwargs.get('heating_setpoint'),
+                kwargs.get('cooling_setpoint'),
+                kwargs.get('override'),
+                kwargs.get('fan'),
+                kwargs.get('mode'),
+                kwargs.get('state'),
+                kwargs.get('time'))
+            self.publish_schedule(*sched)
+        except Exception as e:
+            print "Failed to publish message", e
 
     def generate_schedule(self, temp, rel_humidity, heating_setpt, cooling_setpt, override, fan, mode, state, time):
         data = (temp, rel_humidity, heating_setpt, cooling_setpt, override, fan, mode, state, time)
@@ -76,7 +94,8 @@ class Scheduler(object):
             for po in bw_message.payload_objects:
                 if po.type_dotted == (2,1,1,0):
                     tstat_data = msgpack.unpackb(po.content)
-                    thread.start_new_thread(self.publish, (), {'kwargs': tstat_data})
+                    self.last_received_schedule = {'kwargs': tstat_data}
+                    thread.start_new_thread(self.publish, (), self.last_received_schedule)
         except Exception as e:
             print e
 
@@ -85,14 +104,13 @@ signal = "scratch.ns/services/s.schedule/schedule1/i.xbos.thermostat/signal/info
 slot = "scratch.ns/services/s.schedule/schedule1/i.xbos.thermostat/slot/state"
 ssu_list = [SSU_Natural(), SSU_Social(), SSU_Custom()]
 schedule = Scheduler(signal, slot, ssu_list)
-# schedule.run()
 thread.start_new_thread(schedule.run, (), {})
 
 signal2 = "scratch.ns/services/s.schedule/schedule2/i.xbos.thermostat/signal/info"
 slot2 = "scratch.ns/services/s.schedule/schedule2/i.xbos.thermostat/slot/state"
 ssu_list2 = [SSU_Social(), SSU_Custom()]
 schedule2 = Scheduler(signal2, slot2, ssu_list2)
-# thread.start_new_thread(schedule2.run, (), {})
+thread.start_new_thread(schedule2.run, (), {})
 
 while True:
     time.sleep(1000)
